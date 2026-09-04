@@ -1,38 +1,55 @@
-# objectdetection-esp32
+# ESP32-CAM Edge Vision Pipeline
 
-Real-time object detection over an ESP32-CAM stream. The ESP32-CAM serves JPEG
-frames over WiFi; a Python client pulls them and runs object detection, drawing
-labelled bounding boxes on a live window.
+A real-time object-detection prototype that combines an ESP32-CAM video source with host-side YOLO/cvlib inference.
 
-## How it works
+The ESP32 handles image capture and Wi-Fi delivery; a Python client performs detection over the incoming frames. This separation keeps the embedded component lightweight while allowing a larger pretrained model to run on a laptop or edge host.
 
-- **`esp32-cam.ino`** — flashed to an ESP32-CAM (AI-Thinker board). Connects to
-  WiFi and runs a small web server exposing JPEG snapshots at three resolutions:
-  `/cam-lo.jpg` (320×240), `/cam-mid.jpg` (350×530), `/cam-hi.jpg` (800×600).
-  Built on the [esp32cam](https://github.com/yoursunny/esp32cam) library.
-- **`model-code.py`** — fetches frames from the camera's HTTP endpoint and runs
-  [cvlib](https://github.com/arunponnusamy/cvlib)'s `detect_common_objects`
-  (a pretrained YOLO model over the 80 COCO classes), drawing boxes with
-  `draw_bbox`. Two windows run in parallel: the raw live transmission and the
-  detection overlay.
+## Architecture
+
+```mermaid
+flowchart LR
+    A[ESP32-CAM] -->|JPEG over Wi-Fi| B[Python frame client]
+    B --> C[YOLO / cvlib inference]
+    C --> D[Live labelled output]
+```
+
+## Components
+
+- **`esp32-cam.ino`** — Connects an AI-Thinker ESP32-CAM to Wi-Fi and exposes JPEG snapshots at three resolutions:
+  - `/cam-lo.jpg` — 320×240
+  - `/cam-mid.jpg` — 350×530
+  - `/cam-hi.jpg` — 800×600
+- **`model-code.py`** — Pulls frames from the camera endpoint, runs `detect_common_objects` using a pretrained YOLO model over the COCO classes, and renders labelled bounding boxes.
 
 ## Hardware
 
-- ESP32-CAM module (AI-Thinker pin config) + an FTDI / USB-serial adapter to flash it.
+- ESP32-CAM module using the AI-Thinker pin configuration
+- FTDI or USB-to-serial adapter for flashing
+- A host machine for Python inference
 
-## Setup
+## Run the prototype
 
-1. In `esp32-cam.ino`, set `WIFI_SSID` / `WIFI_PASS`, flash the board, and note
-   the IP it prints over serial (115200 baud).
-2. Put that IP into the `url` variable in `model-code.py`.
-3. Run the detector (cvlib downloads the YOLO weights on first run):
+1. Replace the Wi-Fi placeholders in `esp32-cam.ino`.
+2. Flash the firmware and read the assigned IP address over serial at 115200 baud.
+3. Set that address in the Python client's `url` variable.
+4. Install the dependencies and run the detector:
 
-       pip install opencv-python cvlib numpy matplotlib
-       python model-code.py
+```bash
+pip install opencv-python cvlib numpy matplotlib
+python model-code.py
+```
 
-Press **q** to close a window.
+Press `q` to close the live windows. cvlib downloads the pretrained YOLO weights on first use.
 
-> **Note:** never hardcode real WiFi credentials in a public repo — the
-> placeholders above are intentional.
+## Engineering focus
+
+- Embedded camera streaming over HTTP
+- Real-time frame acquisition and inference
+- Hardware–software integration
+- Resolution and latency trade-offs in a constrained vision pipeline
+
+## Security and limitations
+
+Never commit real Wi-Fi credentials; the repository intentionally uses placeholders. This prototype uses unencrypted local HTTP and host-side inference, so it is intended for controlled-network experimentation rather than production deployment.
 
 ![ESP32-CAM object detection demo](https://github.com/abdelrhmanidk/objectdetection-esp32/assets/145793607/8ff00897-1e96-488f-857d-1c13d62e9433)
